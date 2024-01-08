@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<MF0 version="1.1" packageUris="http://schema.mathworks.com/mf0/faultinfo_datamodel/R2021a">
+  <faultinfo.FaultContainerSet type="faultinfo.FaultContainerSet" uuid="e19aa07f-00d7-4515-b50a-5cc6dcb97c2f">
+    <conditionals type="faultinfo.conditional.Conditional" uuid="5b9c0756-a6ee-4312-9113-1d556a2a4c61">
+      <condition>x == true</condition>
+      <mustBeLogged>false</mustBeLogged>
+      <name>SampleConditional</name>
+      <resyncRefBlkID></resyncRefBlkID>
+      <resyncUUID>00000000-0000-0000-0000-000000000000</resyncUUID>
+      <symbols type="faultinfo.conditional.ExpressionSymbol" uuid="69debe05-d51d-4434-a2e2-74e6960bfecb">
+        <expression>true</expression>
+        <name>x</name>
+      </symbols>
+    </conditionals>
+    <isEnabled>false</isEnabled>
+    <lastUpdatedAt>2024-01-02T11:08:43</lastUpdatedAt>
+    <modelName>digi</modelName>
+    <modelUUID>8416e9f3-4ea4-4300-9677-a1960e5f0c3a</modelUUID>
+  </faultinfo.FaultContainerSet>
+</MF0>
