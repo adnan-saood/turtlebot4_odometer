@@ -41,11 +41,11 @@ classdef tb4Odometer
             obj.State_ = zeros(5, 1);
             obj.P = eye(5) * 1.0e-9;
             obj.Q = eye(5) * 0.0001;
-            obj.r = 0.03575; % Replace with your actual value
-            obj.L = 0.235;  % Replace with your actual value
+            obj.r = 0.03575;  
+            obj.L = 0.235;   
             obj.timestamp = 0.0;
 
-            obj.R = zeros(5);
+            obj.R = ones(5)*1e-3;
         end
 
         function obj = setQ(obj, Qin)
@@ -56,26 +56,29 @@ classdef tb4Odometer
             obj.R = Rin;
         end
 
-        function obj = predict_(obj, delta_phi_L, delta_phi_R, dt)
+        function [obj, dS, newP] = predict_(obj, delta_phi_L, delta_phi_R, dt)
             delta_phi_avg = (delta_phi_R + delta_phi_L) / 2.0;
             V_ = obj.r * delta_phi_avg / dt;
 
             theta = obj.State_(3);
             omega = obj.State_(5);
 
-            F = [1, 0, -V_ * dt * sin(theta), dt * cos(theta), 0;
-                 0, 1, V_ * dt * cos(theta), dt * sin(theta), 0;
+            V_dt_cos_theta = V_ * dt * cos(theta);
+            V_dt_sin_theta = V_ * dt * sin(theta);
+
+            F = [1, 0, -V_dt_sin_theta, dt * cos(theta), 0;
+                 0, 1,  V_dt_cos_theta, dt * sin(theta), 0;
                  0, 0, 1, 0, dt;
                  0, 0, 0, 1, 0;
                  0, 0, 0, 0, 1];
 
-            obj.State_ = obj.State_ + [V_ * dt * cos(theta);
-                                     V_ * dt * sin(theta);
-                                     omega * dt;
-                                     0;
-                                     0];
+            dS = [V_dt_cos_theta; 
+                  V_dt_sin_theta; 
+                  omega * dt; 
+                  0 ; 
+                  0];
 
-            obj.P = F * obj.P * F' + obj.Q;
+            newP = F * obj.P * F' + obj.Q;
         end
 
         function out = pose(obj)
@@ -120,8 +123,8 @@ classdef tb4Odometer
           obj.theta_imu = obj.theta_imu + omega_z * obj.msgs.dt;
 
 
-          V_l = obj.msgs.velocity_left * obj.r;
-            V_r = obj.msgs.velocity_right * obj.r;
+          V_l = obj.msgs.velocity_left;
+            V_r = obj.msgs.velocity_right;
 
             z = [V_l;
                  V_r;
@@ -129,7 +132,9 @@ classdef tb4Odometer
                  obj.V;
                  omega_z];
 
-            obj = predict_(obj,delta_phi_L, delta_phi_R, obj.msgs.dt);
+            [obj, dS, newP] = predict_(obj,delta_phi_L, delta_phi_R, obj.msgs.dt);
+            obj.State_ = obj.State_ + dS;
+            obj.P = newP;
 
 
             H = [0, 0, 0, 1,  obj.L / 2.0;
@@ -140,7 +145,7 @@ classdef tb4Odometer
 
             y = z-H*obj.State_;
             S = H*obj.P*H'+obj.R;
-            K = obj.P*H'*inv(S);
+            K = obj.P*H'/S;
             obj.State_ = obj.State_+K*y;
             obj.P = (eye(5)-K*H)*obj.P;
 

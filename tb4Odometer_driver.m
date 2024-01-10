@@ -1,6 +1,6 @@
-%% Clear variables and restart workspace
-clear;
-
+% %% Clear variables and restart workspace
+% clear;
+% 
 proj_startup;
 
 %% get messages
@@ -10,6 +10,7 @@ imu = getIMU(bagFile);
 vlr = getWheelVels(bagFile);
 tickslr = getTicks(bagFile);
 robotOdom = getOdoms(bagFile);
+mouse = getMouse(bagFile);
 
 TT = synchronize(scans, imu, vlr, tickslr, robotOdom);
 
@@ -25,27 +26,51 @@ end
 %%
 TT = TT(iters,:);
 %% Create Odometer Object
-odom = tb4Odometer;
 
-% z = [V_l; V_r; theta_imu; V; omega_z];
+vars1 = linspace(-2,4,5);
+vars1 = 10.^vars1;
 
-% S = [x; y; theta; V; W];
+vars2 = linspace(-2,3,5);
+vars2 = 10.^vars2;
 
-Q = diag([1e-2 1e-2 1e-2 1e3 1e-3]);
-R = diag([1e-3 1e-3 1e-1 1e-2 1e-2]);
-% odom = setQ(odom, Q);
-odom = setR(odom, R);
+rmsResult = [];
 
-poses = EstimatePoses(odom, TT);
+fprintf("Index of %d: ", numel(vars1) * numel(vars2));
 
-plot(poses.x.Data)
-hold on;
-plot(TT.Xlaser)
-
+for ind1 = 1:numel(vars1)
+    for ind2 = 1:numel(vars2)
+        odom = tb4Odometer;
+    
+        % S = [x; y; theta; V; W];
+    
+        % z = [V_l; V_r; theta_imu; V; omega_z];
+        
+        Q = diag([1e8  1e8  vars2(ind2)    vars2(ind2)    vars2(ind2)]);
+        R = diag([1e-2 1e-2 1e-3 1e-2 0.0630]);
+    
+        odom = setQ(odom, Q);
+        odom = setR(odom, R);
+    
+        poses = EstimatePoses(odom, TT);
+    
+        trivialEstimationX = 0.5*(TT.odomX - TT.odomX(1)) + 0.5 * TT.Xlaser;
+        trivialEstimationY = 0.5*(TT.odomY - TT.odomY(1)) + 0.5 * TT.Ylaser;
+    
+    
+        errorPoseX = poses.x.Data - trivialEstimationX;
+        errorPoseY = poses.y.Data - trivialEstimationY;
+        errorPoseXRMS = rms(errorPoseX);
+        errorPoseYRMS = rms(errorPoseY);
+    
+        rmsResult(ind1, ind2) = errorPoseXRMS + errorPoseYRMS;
+        fprintf("%d - ", ind1);
+    
+    end
+fprintf("\n")
+end
+% semilogx(rmsResult(:,1), rmsResult(:,2:end),'DisplayName','rmsResult')
 
 %%
-
-
 function res = EstimatePoses(odom, TT)
 
 time_ = seconds(TT.Time);
@@ -93,6 +118,8 @@ for i = 1:numel(time_)
 
     estimated_pose(i,:) = pose(odom);
 end
+
+
 resTransformed = [0 1; -1 0] * [estimated_pose(:,1)' ; estimated_pose(:,2)'];
 x = timeseries(resTransformed(1,:)', estimated_pose(:,4));
 y = timeseries(resTransformed(2,:)', estimated_pose(:,4));
