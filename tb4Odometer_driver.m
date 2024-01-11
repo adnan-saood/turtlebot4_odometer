@@ -23,14 +23,13 @@ for i = 1:N
     end
     iters = [iters i];
 end
-%%
 TT = TT(iters,:);
 %% Create Odometer Object
 
-vars1 = linspace(-2,4,5);
+vars1 = -2;
 vars1 = 10.^vars1;
 
-vars2 = linspace(-2,3,5);
+vars2 = -2;
 vars2 = 10.^vars2;
 
 rmsResult = [];
@@ -45,7 +44,7 @@ for ind1 = 1:numel(vars1)
     
         % z = [V_l; V_r; theta_imu; V; omega_z];
         
-        Q = diag([1e8  1e8  vars2(ind2)    vars2(ind2)    vars2(ind2)]);
+        Q = diag([1e-3  1e-3  vars2(ind2)    vars2(ind2)    vars2(ind2)]);
         R = diag([1e-2 1e-2 1e-3 1e-2 0.0630]);
     
         odom = setQ(odom, Q);
@@ -108,8 +107,8 @@ for i = 1:numel(time_)
     msg.ticks_left = ticksl_(currentIndex);
     msg.ticks_right = ticksr_(currentIndex);
 
-    msg.velocity_left = vl_(currentIndex);
-    msg.velocity_right = vr_(currentIndex);
+    msg.velocity_right = vr_(currentIndex) * odom.r;
+    msg.velocity_left = vl_(currentIndex) * odom.r;
 
     msg.ax = ax_(currentIndex);
     msg.wz = wz_(currentIndex);
@@ -123,7 +122,7 @@ end
 resTransformed = [0 1; -1 0] * [estimated_pose(:,1)' ; estimated_pose(:,2)'];
 x = timeseries(resTransformed(1,:)', estimated_pose(:,4));
 y = timeseries(resTransformed(2,:)', estimated_pose(:,4));
-theta = timeseries(estimated_pose(:,3)', estimated_pose(:,4));
+theta = timeseries(estimated_pose(:, 3), estimated_pose(:,4));
 
 res.x = x;
 res.y = y;
