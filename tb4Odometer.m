@@ -21,6 +21,8 @@ classdef tb4Odometer
             'laserX', 0, ...
             'laserY', 0, ...
             'laserTheta', 0, ...
+            'mouseX', 0, ...
+            'mouseY', 0, ...
             'ax', 0,...
             'wz', 0,...
             'dt', 0);
@@ -42,13 +44,13 @@ classdef tb4Odometer
     methods
         function obj = tb4Odometer(obj)
             obj.State_ = zeros(5, 1);
-            obj.P = eye(5) * 1.0e-9;
+            obj.P = eye(5) * 1.0e1;
             obj.Q = eye(5) * 0.0001;
             obj.r = 0.03575;
             obj.L = 0.235;
             obj.timestamp = 0.0;
 
-            obj.R = ones(8)*1e-3;
+            obj.R = ones(7)*1e-3;
         end
 
         function obj = setQ(obj, Qin)
@@ -57,6 +59,10 @@ classdef tb4Odometer
 
         function obj = setR(obj, Rin)
             obj.R = Rin;
+        end
+
+        function P = getP(obj)
+            P = obj.P;
         end
 
         function [obj, newP] = predict_(obj, delta_phi_R, delta_phi_L, dt)
@@ -76,14 +82,14 @@ classdef tb4Odometer
 
             dV = V_ - obj.State_(4);
             domega = omega - obj.State_(5);
- 
+
 
             obj.State_ = obj.State_ + ...
                 [delta_S * cos(theta + delta_Theta/2);
-                 delta_S * sin(theta + delta_Theta/2);
-                  delta_Theta;
-                  dV;
-                  domega];
+                delta_S * sin(theta + delta_Theta/2);
+                delta_Theta;
+                dV;
+                domega];
 
             if(obj.State_(3) > pi)
                 obj.State_(3) = obj.State_(3)-2*pi;
@@ -124,7 +130,7 @@ classdef tb4Odometer
 
             a_x = a_eff(1);
             a_y = a_eff(2);
-            
+
             omega_z = omega(3);
 
             obj.V_imu = obj.V_imu + a_x * obj.msgs.dt;
@@ -151,8 +157,16 @@ classdef tb4Odometer
             [obj, newP] = predict_(obj, delta_phi_R, delta_phi_L, obj.msgs.dt);
             obj.P = newP;
 
-            H = [0, 0, 0, 1,  obj.L / 2.0;
-                 0, 0, 0, 1, -obj.L / 2.0;
+            a = 1 /(obj.r * obj.msgs.dt);
+            theta_ = obj.State_(3);
+            Ct = cos(theta_);
+            St = sin(theta_);
+
+            alpha = 0.0;
+            beta = 1-alpha;
+
+            H = [alpha*2*a*Ct, alpha*2*a*St, alpha*a*obj.L, beta*1,  beta*obj.L / 2.0;
+                 alpha*2*a*Ct, alpha*2*a*St, -alpha*a*obj.L, beta*1,  -beta*obj.L / 2.0;
                  0, 0, 0, 1, 0;
                  0, 0, 0, 0, 1;
                  1, 0, 0, 0, 0;
