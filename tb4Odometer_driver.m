@@ -1,6 +1,6 @@
 % %% Clear variables and restart workspace
-% clear;
-% 
+clear;
+%
 proj_startup;
 
 %% get messages
@@ -26,10 +26,10 @@ end
 TT = TT(iters,:);
 %% Create Odometer Object
 
-vars1 = -2;
+vars1 = 5;
 vars1 = 10.^vars1;
 
-vars2 = -2;
+vars2 = -5;
 vars2 = 10.^vars2;
 
 rmsResult = [];
@@ -39,36 +39,70 @@ fprintf("Index of %d: ", numel(vars1) * numel(vars2));
 for ind1 = 1:numel(vars1)
     for ind2 = 1:numel(vars2)
         odom = tb4Odometer;
-    
+
         % S = [x; y; theta; V; W];
-    
+
         % z = [V_l; V_r; theta_imu; V; omega_z];
-        
-        Q = diag([1e-3  1e-3  vars2(ind2)    vars2(ind2)    vars2(ind2)]);
-        R = diag([1e-2 1e-2 1e-3 1e-2 0.0630]);
-    
+
+        Q = diag([1e-1 1e-1 1e-2 1e-1 1e-1]);
+        R = diag([1e-1 1e-1 1e-1 1e-1 1e12 1e12 1e12]);
+
         odom = setQ(odom, Q);
         odom = setR(odom, R);
-    
+
         poses = EstimatePoses(odom, TT);
-    
-        trivialEstimationX = 0.5*(TT.odomX - TT.odomX(1)) + 0.5 * TT.Xlaser;
-        trivialEstimationY = 0.5*(TT.odomY - TT.odomY(1)) + 0.5 * TT.Ylaser;
-    
-    
+
+        trivialEstimationX =  TT.Xlaser;
+        trivialEstimationY =  TT.Ylaser;
+
+
         errorPoseX = poses.x.Data - trivialEstimationX;
         errorPoseY = poses.y.Data - trivialEstimationY;
         errorPoseXRMS = rms(errorPoseX);
         errorPoseYRMS = rms(errorPoseY);
-    
+
         rmsResult(ind1, ind2) = errorPoseXRMS + errorPoseYRMS;
         fprintf("%d - ", ind1);
-    
+
     end
-fprintf("\n")
+    fprintf("\n")
 end
 % semilogx(rmsResult(:,1), rmsResult(:,2:end),'DisplayName','rmsResult')
+%%
+figure;
+subplot(211);
 
+plot(poses.y.Time,poses.x.Data, 'r', 'LineWidth',1.5);
+hold on;
+plot(poses.x.Time, poses.y.Data, 'g', 'LineWidth',1.5);
+subplot(212)
+plot(seconds(TT.Time), TT.odomX, 'r', 'LineWidth',1.5)
+hold on
+plot(seconds(TT.Time), TT.odomY, 'g', 'LineWidth',1.5)
+plot(seconds(TT.Time), TT.Xlaser, 'r', 'LineWidth',1.5)
+hold on
+plot(seconds(TT.Time), TT.Ylaser, 'g', 'LineWidth',1.5)
+
+%%
+plot(TT.Time, TT.odomY);
+hold on
+plot(TT.Time, TT.odomX);
+plot(TT.Time, cos(poses.theta.Data));
+plot(TT.Time, cos(TT.odomTheta));
+
+%%
+plot(TT.Time, TT.Ylaser);
+hold on
+plot(TT.Time, TT.odomY)
+
+plot(TT.Time, TT.ThetaLaser);
+hold on
+plot(TT.Time, TT.odomTheta)
+%%
+figure;
+plot(poses.x.Data, poses.y.Data);
+hold on
+plot(trivialEstimationX, trivialEstimationY)
 %%
 function res = EstimatePoses(odom, TT)
 
@@ -85,14 +119,18 @@ wz_ = TT.wz;
 
 
 prevTimeStamp = time_(1)-0.005;
-msg = struct('timestamp', 0,...
+msgs = struct('timestamp', 0,...
     'ticks_left', 0,...
     'ticks_right', 0,...
     'velocity_left', 0,...
     'velocity_right', 0,...
+    'laserX', 0, ...
+    'laserY', 0, ...
+    'laserTheta', 0, ...
     'ax', 0,...
     'wz', 0,...
     'dt', 0);
+
 estimated_pose = zeros(numel(time_), 4);
 for i = 1:numel(time_)
     % if(sum(ismissing(TT(i,:))) > 0)
@@ -113,13 +151,17 @@ for i = 1:numel(time_)
     msg.ax = ax_(currentIndex);
     msg.wz = wz_(currentIndex);
 
+    msg.laserX = TT.Xlaser(currentIndex);
+    msg.laserY = TT.Ylaser(currentIndex);
+    msg.laserTheta = TT.ThetaLaser(currentIndex);
+
     odom = update(odom, msg);
 
     estimated_pose(i,:) = pose(odom);
 end
 
 
-resTransformed = [0 1; -1 0] * [estimated_pose(:,1)' ; estimated_pose(:,2)'];
+resTransformed = [estimated_pose(:,1)' ; estimated_pose(:,2)'];
 x = timeseries(resTransformed(1,:)', estimated_pose(:,4));
 y = timeseries(resTransformed(2,:)', estimated_pose(:,4));
 theta = timeseries(estimated_pose(:, 3), estimated_pose(:,4));

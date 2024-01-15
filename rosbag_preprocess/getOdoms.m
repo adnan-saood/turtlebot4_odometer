@@ -9,13 +9,19 @@ T_start = stamp2Sec(odoms{1}.header);
 for i = 1:numel(odoms)
     X(i) = odoms{i}.pose.pose.position.x;
     Y(i) = odoms{i}.pose.pose.position.y;
-    Theta_axang = quat2axang([odoms{i}.pose.pose.orientation.w ...
+    R = quat2eul([odoms{i}.pose.pose.orientation.w ...
         odoms{i}.pose.pose.orientation.x ...
         odoms{i}.pose.pose.orientation.y ...
-        odoms{i}.pose.pose.orientation.z]);
-    Theta(i) = Theta_axang(4);
+        odoms{i}.pose.pose.orientation.z], "ZYX");
+    Theta(i) = R(1);
     t(i) = stamp2Sec(odoms{i}.header);
 end
+
+initialOdom = [X(1) ; Y(1) ; Theta(1)];
+
+% X = X - initialOdom(1);
+% Y = Y - initialOdom(2);
+% Theta = Theta - initialOdom(3);
 
 
 tsc = tscollection({ ...
